@@ -1,75 +1,49 @@
 import sys
+import os
+from sklearn import KMeans
 import random
-from collections import Counter
 import math
+from collections import Counter
 
-def generate_samples(filename):
-	with open(filename,"wb") as f:
-		for i in range(1000):
-			f.write(str(random.gauss(0,2)))
-			f.write("\t0\n")
-		for i in range(1000):
-			f.write(str(random.gauss(5,1)))
-			f.write("\t1\n")
-
-def get_density(point, mean, stdevs):
-	return (1/(stdevs* math.sqrt(2 * math.pi))) * (math.pow(math.e, -(point-mean)*(point-mean) / (2*stdevs*stdevs)))
+def find_prob(point, mean, stdevs):
+	return (1/(stdevs* math.sqrt(2 * 3.14))) * (math.pow(math.e, -(point-mean)*(point-mean) / (2*stdevs*stdevs)))
 
 def get_posterior(point, priors, means, stdevs):
 	posteriors = Counter()
-	for k in priors.keys():
-		posteriors[k] = get_density(point, means[k], stdevs[k]) * priors[k]
-
+	posteriors = [find_prob(point, means[k], stdevs[k]) * priors[k] for k in priors.keys()]
 	sum_posteriors = sum(posteriors.values())
-	for k in posteriors.keys():
-		posteriors[k] /= sum_posteriors
-	
+	posteriors = [posteriors[k]/sum_posteriors for k in posteriors.keys()]	
 	return posteriors
 
 def relearn(plines):
-	priors = Counter()
-	means  = Counter()
-	stdevs = Counter()
-
+	priors,means,stdevs = Counter(),Counter(),Counter()
 	for (posterior, line) in plines:
-		for k in posterior.keys():
-			priors[k] += posterior[k]
-			means[k]  += posterior[k] * float(line[0])
-			stdevs[k] += posterior[k] * float(line[0]) * float(line[0])
-
+		priors = [priors[k]+posterior[k] for k in posterior.keys()]
+		means  = [means[k]+float(line[0])*posterior[k] for k in posterior.keys()]
+		stdevs = [stdevs[k]+pow(float(line[0]),2)*posterior[k] for k in posterior.keys()]
 		sum_priors = sum(priors.values())
-		for k in priors.keys():
-			means[k] /= priors[k]
-			stdevs[k]/= priors[k]
-			stdevs[k] = math.sqrt(stdevs[k] - means[k] * means[k])
-			priors[k]/= sum_priors
-
+		means  = [means[k]/priors[k] for k in priors.keys()]
+		stdevs = [stdevs[k]/priors[k] for k in priors.keys()]
+		stdevs = [math.sqrt(stdevs[k] - means[k] * means[k]) for k in priors.keys()]
+		priors = [priors[k]/sum_priors for k in priors.keys()]
 		return (priors, means, stdevs)
 
-def main():
-	op = sys.argv[1]
-	trainfile = "../Output/gmm/gmm.test"
-	outputfile= "../Output/gmm/gmm.output"
-	f = open(outputfile,"wb")
-	if op == "generate":
-		generate_samples(trainfile)
-	else:
-		priors = Counter({"0": 0.5, "1":0.5})
-		means  = Counter({"0": random.random(), "1":random.random()})
-		stdevs = Counter({"0": random.random(), "1":random.random()})
+op = sys.argv[1]
+trainfile = "../Output/gmm/gmm.test"
+outputfile= "../Output/gmm/gmm.output"
+f = open(outputfile,"wb")
+if op == "generate":
+	with open(filename,"wb") as f:
+		(f.write(str(random.gauss(0,2))" 0\n") for i in range(1000))
+		(f.write(str(random.gauss(5,1))+" 1\n") for i in range(1000))
+else:
+	priors = Counter({"0": 0.5, "1":0.5})
+	stdevs = Counter({"0": random.random(), "1":random.random()})
+	means  = Counter({"0": random.random(), "1":random.random()})
 
-		for i in range(1000):
-			lines = [l.strip().split() for l in open(trainfile).readlines()]
-			plines= []
-			for line in lines:
-				plines.append((get_posterior(float(line[0]), priors, means, stdevs), line))
-
-			f.write("Iterations: "+str(i)+"\n")
-			f.write("Priors: "+str(priors)+"\n")
-			f.write("Means: "+str(means)+"\n")
-			f.write("Stdevs: "+str(stdevs)+"\n")
-			(priors, means, stdevs) = relearn(plines)
-	f.close()
-
-if __name__ == '__main__':
-	main()
+	for i in range(1000):
+		lines = [l.strip().split() for l in open(trainfile).readlines()]
+		plines= [(get_posterior(float(line[0]), priors, means, stdevs), line) for line in lines]
+		f.write("Means: "+str(means)+"\n"+"Stdevs: "+str(stdevs)+"\n")
+		(priors, means, stdevs) = relearn(plines)
+f.close()

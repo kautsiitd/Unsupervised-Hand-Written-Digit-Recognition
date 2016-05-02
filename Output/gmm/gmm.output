@@ -1,4 +1,4 @@
 Iterations: 0
 Priors: Counter({'1': 0.5, '0': 0.5})
 Means: Counter({'0': 10, '1': 5})
-Stdevs: Counter({'1': 0.8756095498301072, '0': 0.3036973076737366})
+Stdevs: Counter({'0': 2, '1': 1})
